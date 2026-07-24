@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Register from "./pages/Auth/Register";
 import Login from "./pages/Auth/Login";
 import Home from "./pages/Home";
+import EventDetails from "./pages/EventDetails";
 function App() {
   return (
     <Routes>
@@ -12,6 +13,7 @@ function App() {
       {/* Authentication */}
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/event/:id" element={<EventDetails />} />
 
       {/* User */}
 

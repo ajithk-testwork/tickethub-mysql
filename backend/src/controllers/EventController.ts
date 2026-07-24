@@ -20,7 +20,7 @@ const uploadToCloudinary = (buffer: Buffer): Promise<string> => {
         }
 
         resolve(result.secure_url);
-      }
+      },
     );
 
     streamifier.createReadStream(buffer).pipe(stream);
@@ -28,7 +28,7 @@ const uploadToCloudinary = (buffer: Buffer): Promise<string> => {
 };
 
 
-
+//Create Event
 export const createEvent = async (
   req: Request,
   res: Response,
@@ -54,8 +54,8 @@ export const createEvent = async (
       return;
     }
 
-       const ping = await cloudinary.api.ping();
-        console.log(ping);
+    const ping = await cloudinary.api.ping();
+    console.log(ping);
     console.log("========== BODY ==========");
     console.log(req.body);
 
@@ -76,7 +76,7 @@ export const createEvent = async (
     // Upload image to Cloudinary
     const imageUrl = await uploadToCloudinary(req.file.buffer);
 
-    console.log(imageUrl)
+    console.log(imageUrl);
 
     // Logged in Admin
     const userId = (req as any).user.id;
@@ -112,3 +112,204 @@ export const createEvent = async (
     });
   }
 };
+
+// Update Event
+export const updateEvent = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const {
+      title,
+      description,
+      location,
+      date,
+      time,
+      price,
+      totalTickets,
+      isPublished,
+    } = req.body;
+
+    // Check event exists
+    const existingEvent = await prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!existingEvent) {
+      res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+      return;
+    }
+
+    let imageUrl = existingEvent.image;
+
+    // Upload new image (optional)
+    if (req.file) {
+      imageUrl = await uploadToCloudinary(req.file.buffer);
+    }
+
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        title: title ?? existingEvent.title,
+        description: description ?? existingEvent.description,
+        location: location ?? existingEvent.location,
+        date: date ? new Date(date) : existingEvent.date,
+        time: time ?? existingEvent.time,
+        image: imageUrl,
+        price: price ? Number(price) : existingEvent.price,
+        totalTickets: totalTickets
+          ? Number(totalTickets)
+          : existingEvent.totalTickets,
+        availableTickets: totalTickets
+          ? Number(totalTickets)
+          : existingEvent.availableTickets,
+        isPublished:
+          isPublished !== undefined
+            ? isPublished === "true" || isPublished === true
+            : existingEvent.isPublished,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Event updated successfully",
+      data: updatedEvent,
+    });
+  } catch (error: any) {
+    console.error("Update Event Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+//Get All Events
+export const getAllEvents = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        isPublished: true,
+      },
+
+      orderBy: {
+        date: "asc",
+      },
+
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        location: true,
+        date: true,
+        time: true,
+        image: true,
+        price: true,
+        totalTickets: true,
+        availableTickets: true,
+        isPublished: true,
+        createdAt: true,
+
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      totalEvents: events.length,
+      data: events,
+    });
+  } catch (error: any) {
+    console.error("Get All Events Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+//Get Single Event
+export const getSingleEvent = async ( req: Request, res: Response) : Promise<void> => {
+  try{
+    const { id } = req.params;
+
+    if(!id){
+      res.status(400).json({
+        success:false,
+        message: "Event ID is Required",
+      });
+      return;
+    }
+
+     const event = await prisma.event.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        location: true,
+        date: true,
+        time: true,
+        image: true,
+        price: true,
+        totalTickets: true,
+        availableTickets: true,
+        isPublished: true,
+        createdAt: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+      if (!event) {
+      res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Event fetched successfully",
+      data: event,
+    });
+  }catch(error){
+    console.error("Get SIngle Event Error", error)
+  }
+}
